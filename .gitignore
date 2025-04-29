@@ -1,0 +1,63 @@
+# Carpeta del ambiente virtual
+sofias/
+venv/
+env/
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+db.sqlite3
+db.sqlite3-journal
+.env
+.venv
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Django
+*.log
+local_settings.py
+media/
+static/collected/
+
+# C
+*.o
+*.ko
+*.obj
+*.elf
+*.lib
+*.a
+*.la
+*.dll
+*.so
+*.so.*
+*.dylib
+*.exe
+*.out
+
+# Rust
+/target/
+Cargo.lock
+**/*.rs.bk
+
+# JavaScript
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editores/IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
