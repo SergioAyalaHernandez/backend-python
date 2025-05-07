@@ -91,11 +91,24 @@ def get_user_by_id(user_id):
     return None
 def delete_user_by_id(user_id):
     users = get_collection("users")
+    actividades = get_collection("actividades")
+
     try:
         object_id = ObjectId(user_id)
     except InvalidId:
         print("ID inválido para ObjectId")
         return False
+
+    # Primero verificamos si el usuario existe y obtenemos su rol
+    user = users.find_one({"_id": object_id})
+    if not user:
+        return False
+
+    # Si es un profesor, eliminamos todas sus actividades asociadas
+    if user.get("rol") == "profesor":
+        actividades.delete_many({"profesorId": str(object_id)})
+
+    # Finalmente eliminamos el usuario
     result = users.delete_one({"_id": object_id})
     return result.deleted_count > 0
 

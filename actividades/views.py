@@ -1,19 +1,15 @@
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import json
-from .models import Actividad
-from utils.jwt_utils import jwt_required
-from datetime import datetime
-from backend.mongo_client import get_collection
 import base64
+import json
 from bson import ObjectId
+from datetime import datetime
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import base64
+from backend.mongo_client import get_collection
+from utils.jwt_utils import jwt_required
 
 actividades_collection = get_collection("actividades")
 
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-import json
-import base64
 
 
 @csrf_exempt
@@ -31,14 +27,14 @@ def crear_actividad(request):
     descripcion = data.get("descripcion")
     fecha_inicio = data.get("fechaInicio")
     fecha_fin = data.get("fechaFin")
-    hora_inicio = data.get("horaInicio")  
-    hora_fin = data.get("horaFin")        
+    hora_inicio = data.get("horaInicio")
+    hora_fin = data.get("horaFin")
     cupo_maximo = data.get("cupoMaximo")
     recursos = data.get("recursos")
     categoria = data.get("categoria")
-    enlace = data.get("enlace")            
+    enlace = data.get("enlace")
     imagen_base64 = data.get("imagen")
-
+    profesorId = data.get("profesorId")
     imagen_data = None
     imagen_tipo = "image/png"
     imagen_nombre = "imagen.png"
@@ -58,6 +54,7 @@ def crear_actividad(request):
         "recursos": recursos,
         "categoria": categoria,
         "enlace": enlace,
+        "profesorId": profesorId,
         "imagen": {
             "data": imagen_data,
             "contentType": imagen_tipo,
@@ -71,13 +68,11 @@ def crear_actividad(request):
     result = actividades_collection.insert_one(actividad_data)
 
     return JsonResponse({
-        'message': 'Actividad creada correctamente', 
+        'message': 'Actividad creada correctamente',
         'id': str(result.inserted_id)
     }, status=201)
 
 
-
-from datetime import datetime
 
 @csrf_exempt
 @jwt_required
@@ -86,28 +81,27 @@ def obtener_actividades(request):
         return JsonResponse({'error': 'Método no permitido'}, status=405)
 
     actividades = list(actividades_collection.find())
-    
+
     actividades_serializadas = []
     for actividad in actividades:
 
         fecha_inicio = actividad.get("fechaInicio")
         if isinstance(fecha_inicio, str):
             try:
-                fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d") 
+                fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
             except ValueError:
-                fecha_inicio = None  
+                fecha_inicio = None
         elif isinstance(fecha_inicio, datetime):
-            fecha_inicio = fecha_inicio.isoformat()  
-        
-    
+            fecha_inicio = fecha_inicio.isoformat()
+
         fecha_fin = actividad.get("fechaFin")
         if isinstance(fecha_fin, str):
             try:
-                fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d") 
+                fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
             except ValueError:
-                fecha_fin = None 
+                fecha_fin = None
         elif isinstance(fecha_fin, datetime):
-            fecha_fin = fecha_fin.isoformat()  
+            fecha_fin = fecha_fin.isoformat()
 
         actividades_serializadas.append({
             "id": str(actividad.get("_id")),
@@ -122,16 +116,12 @@ def obtener_actividades(request):
             "imagen": actividad.get("imagen"),
             "creado": actividad.get("creado").isoformat() if actividad.get("creado") else None,
             "estado": actividad.get("estado", "abierto"),
+            "profesorId": actividad.get("profesorId"),
             "usuariosRegistrados": actividad.get("usuariosRegistrados", [])
         })
 
     return JsonResponse(actividades_serializadas, safe=False, status=200)
 
-
-
-from datetime import datetime
-
-from datetime import datetime
 
 @csrf_exempt
 @jwt_required
@@ -149,20 +139,20 @@ def obtener_actividad_por_id(request, actividad_id):
         try:
             fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d").date()
         except ValueError:
-            fecha_inicio = None  
+            fecha_inicio = None
     elif isinstance(fecha_inicio, datetime):
-        fecha_inicio = fecha_inicio.date() 
+        fecha_inicio = fecha_inicio.date()
 
     fecha_fin = actividad.get("fechaFin")
     if isinstance(fecha_fin, str):
         try:
             fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d").date()
         except ValueError:
-            fecha_fin = None 
+            fecha_fin = None
     elif isinstance(fecha_fin, datetime):
-        fecha_fin = fecha_fin.date() 
+        fecha_fin = fecha_fin.date()
 
-    # Hora de inicio
+        # Hora de inicio
     hora_inicio = actividad.get("horaInicio")
     if isinstance(hora_inicio, str):
         try:
@@ -191,6 +181,7 @@ def obtener_actividad_por_id(request, actividad_id):
         "imagen": actividad.get("imagen") if actividad.get("imagen") else None,
         "creado": actividad.get("creado").isoformat() if actividad.get("creado") else None,
         "estado": actividad.get("estado", "abierto"),
+        "profesorId": actividad.get("profesorId"),
         "usuariosRegistrados": actividad.get("usuariosRegistrados", [])
     }
 
@@ -210,7 +201,8 @@ def actualizar_actividad(request, actividad_id):
 
     update_data = {}
 
-    campos = ["nombre", "descripcion", "fechaInicio", "fechaFin", "cupoMaximo", "recursos", "categoria", "imagen", "estado"]
+    campos = ["nombre", "descripcion", "fechaInicio", "fechaFin", "cupoMaximo", "recursos", "categoria", "imagen",
+              "estado"]
     for campo in campos:
         if campo in data:
             update_data[campo] = data[campo]
@@ -222,12 +214,23 @@ def actualizar_actividad(request, actividad_id):
             "contentType": "image/png",
             "nombre": "imagen.png"
         }
-    
+
     if "cupoMaximo" in update_data:
         actividad = actividades_collection.find_one({"_id": ObjectId(actividad_id)})
         if actividad:
             usuarios_registrados = len(actividad.get("usuariosRegistrados", []))
-            update_data["cuposDisponibles"] = max(0, update_data["cupoMaximo"] - usuarios_registrados)
+
+            if update_data["cupoMaximo"] < usuarios_registrados:
+                return JsonResponse({
+                    'error': 'El cupo maximo no puede ser menor que el numero de usuarios ya registrados',
+                    'usuariosRegistrados': usuarios_registrados
+                }, status=400)
+
+            update_data["cuposDisponibles"] = update_data["cupoMaximo"] - usuarios_registrados
+
+            # Si se aumenta el cupo y estaba en estado "completo", cambiar a "abierto"
+            if update_data["cupoMaximo"] > actividad.get("cupoMaximo", 0) and actividad.get("estado") == "completo":
+                update_data["estado"] = "abierto"
 
     result = actividades_collection.update_one(
         {"_id": ObjectId(actividad_id)},
@@ -271,6 +274,7 @@ def eliminar_actividad(request, actividad_id):
 
     return JsonResponse({'message': 'Actividad eliminada correctamente'}, status=200)
 
+
 @csrf_exempt
 @jwt_required
 def registrar_usuario_actividad(request, actividad_id):
@@ -284,7 +288,6 @@ def registrar_usuario_actividad(request, actividad_id):
 
     usuario_id = data.get("usuarioId")
     correo = data.get("correo")
-
 
     if not usuario_id or not correo:
         return JsonResponse({'error': 'Se requiere ID de usuario y correo'}, status=400)
@@ -343,27 +346,27 @@ def registrar_usuario_actividad(request, actividad_id):
 def cancelar_registro_usuario(request, actividad_id):
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
-    
+
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido'}, status=400)
-    
+
     usuario_id = data.get("usuarioId")
-    
+
     if not usuario_id:
         return JsonResponse({'error': 'Se requiere ID de usuario'}, status=400)
-    
+
     # Obtener la actividad
     actividad = actividades_collection.find_one({"_id": ObjectId(actividad_id)})
-    
+
     if not actividad:
         return JsonResponse({'error': 'Actividad no encontrada'}, status=404)
-    
+
     # Verificar si la actividad está cerrada
     if actividad.get("estado") == "cerrado":
         return JsonResponse({'error': 'La actividad está cerrada'}, status=400)
-    
+
     # Verificar si el usuario está registrado
     usuarios_registrados = actividad.get("usuariosRegistrados", [])
     usuario_encontrado = False
@@ -371,10 +374,10 @@ def cancelar_registro_usuario(request, actividad_id):
         if usuario.get("usuarioId") == usuario_id:
             usuario_encontrado = True
             break
-    
+
     if not usuario_encontrado:
         return JsonResponse({'error': 'Usuario no registrado en esta actividad'}, status=404)
-    
+
     # Eliminar usuario y actualizar cupos
     result = actividades_collection.update_one(
         {"_id": ObjectId(actividad_id)},
@@ -383,7 +386,7 @@ def cancelar_registro_usuario(request, actividad_id):
             "$inc": {"cuposDisponibles": 1}
         }
     )
-    
+
     # Actualizar estado si estaba completo
     actividad_actualizada = actividades_collection.find_one({"_id": ObjectId(actividad_id)})
     if actividad_actualizada.get("estado") == "completo" and actividad_actualizada.get("cuposDisponibles") > 0:
@@ -391,58 +394,116 @@ def cancelar_registro_usuario(request, actividad_id):
             {"_id": ObjectId(actividad_id)},
             {"$set": {"estado": "abierto"}}
         )
-    
+
     return JsonResponse({
         'message': 'Registro de usuario cancelado correctamente',
         'cuposRestantes': actividad_actualizada.get("cuposDisponibles")
     }, status=200)
+
 
 @csrf_exempt
 @jwt_required
 def cambiar_estado_actividad(request, actividad_id):
     if request.method != 'PUT':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
-    
+
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido'}, status=400)
-    
+
     nuevo_estado = data.get("estado")
-    
+
     if nuevo_estado not in ["abierto", "completo", "cerrado"]:
         return JsonResponse({'error': 'Estado no válido. Debe ser "abierto", "completo" o "cerrado"'}, status=400)
-    
+
     # Si el estado es "completo", verificar que no haya cupos disponibles
     if nuevo_estado == "completo":
         actividad = actividades_collection.find_one({"_id": ObjectId(actividad_id)})
         if actividad and actividad.get("cuposDisponibles", 0) > 0:
-            return JsonResponse({'error': 'No se puede marcar como completo mientras haya cupos disponibles'}, status=400)
-    
+            return JsonResponse({'error': 'No se puede marcar como completo mientras haya cupos disponibles'},
+                                status=400)
+
     result = actividades_collection.update_one(
         {"_id": ObjectId(actividad_id)},
         {"$set": {"estado": nuevo_estado}}
     )
-    
+
     if result.matched_count == 0:
         return JsonResponse({'error': 'Actividad no encontrada'}, status=404)
-    
+
     return JsonResponse({'message': f'Estado de actividad actualizado a "{nuevo_estado}"'}, status=200)
+
 
 @csrf_exempt
 @jwt_required
 def obtener_usuarios_registrados(request, actividad_id):
     if request.method != 'GET':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
-    
+
     actividad = actividades_collection.find_one({"_id": ObjectId(actividad_id)})
-    
+
     if not actividad:
         return JsonResponse({'error': 'Actividad no encontrada'}, status=404)
-    
+
     return JsonResponse({
         'usuarios': actividad.get("usuariosRegistrados", []),
         'cupoMaximo': actividad.get("cupoMaximo"),
         'cuposDisponibles': actividad.get("cuposDisponibles", actividad.get("cupoMaximo")),
         'estado': actividad.get("estado", "abierto")
     }, status=200)
+
+@csrf_exempt
+@jwt_required
+def obtener_actividades_usuario(request, usuario_id):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    # Buscar actividades donde el usuario está inscrito
+    actividades = list(actividades_collection.find(
+        {"usuariosRegistrados.usuarioId": usuario_id}
+    ))
+
+    if not actividades:
+        return JsonResponse([], safe=False, status=200)
+
+    actividades_serializadas = []
+    for actividad in actividades:
+        # Convertir fechas y serializar la actividad igual que en obtener_actividades
+        fecha_inicio = actividad.get("fechaInicio")
+        if isinstance(fecha_inicio, str):
+            try:
+                fecha_inicio = datetime.strptime(fecha_inicio, "%Y-%m-%d")
+            except ValueError:
+                fecha_inicio = None
+        elif isinstance(fecha_inicio, datetime):
+            fecha_inicio = fecha_inicio.isoformat()
+
+        fecha_fin = actividad.get("fechaFin")
+        if isinstance(fecha_fin, str):
+            try:
+                fecha_fin = datetime.strptime(fecha_fin, "%Y-%m-%d")
+            except ValueError:
+                fecha_fin = None
+        elif isinstance(fecha_fin, datetime):
+            fecha_fin = fecha_fin.isoformat()
+
+        actividades_serializadas.append({
+            "id": str(actividad.get("_id")),
+            "nombre": actividad.get("nombre"),
+            "descripcion": actividad.get("descripcion"),
+            "fechaInicio": fecha_inicio,
+            "fechaFin": fecha_fin,
+            "horaInicio": actividad.get("horaInicio"),
+            "horaFin": actividad.get("horaFin"),
+            "cupoMaximo": actividad.get("cupoMaximo"),
+            "cuposDisponibles": actividad.get("cuposDisponibles"),
+            "recursos": actividad.get("recursos"),
+            "categoria": actividad.get("categoria"),
+            "imagen": actividad.get("imagen"),
+            "creado": actividad.get("creado").isoformat() if actividad.get("creado") else None,
+            "estado": actividad.get("estado", "abierto"),
+            "profesorId": actividad.get("profesorId")
+        })
+
+    return JsonResponse(actividades_serializadas, safe=False, status=200)

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import crear_actividad, obtener_actividades, eliminar_actividad, actualizar_actividad, obtener_actividad_por_id, registrar_usuario_actividad, cancelar_registro_usuario, cambiar_estado_actividad, obtener_usuarios_registrados
+from .views import crear_actividad, obtener_actividades, eliminar_actividad, actualizar_actividad, obtener_actividad_por_id, registrar_usuario_actividad, cancelar_registro_usuario, cambiar_estado_actividad, obtener_usuarios_registrados, obtener_actividades_usuario
 
 urlpatterns = [
     path('crear/', crear_actividad),
@@ -11,5 +11,6 @@ urlpatterns = [
     path('actividades/<str:actividad_id>/cancelar-registro/', cancelar_registro_usuario),
     path('actividades/<str:actividad_id>/cambiar-estado/', cambiar_estado_actividad),
     path('actividades/<str:actividad_id>/usuarios-registrados/', obtener_usuarios_registrados),
+    path('actividades/usuario/<str:usuario_id>', obtener_actividades_usuario),
 ]
 
