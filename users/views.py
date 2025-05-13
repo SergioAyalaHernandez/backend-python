@@ -8,7 +8,16 @@ def register_view(request):
     if request.method != 'POST':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
 
-    data = json.loads(request.body)
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    required_fields = ["email", "nombre", "identificacion", "password", "rol"]
+    for field in required_fields:
+        if field not in data:
+            return JsonResponse({'error': f'El campo {field} es requerido'}, status=400)
+
     user, error = create_user(
         data.get("email"),
         data.get("nombre"),
@@ -16,8 +25,15 @@ def register_view(request):
         data.get("password"),
         data.get("rol")
     )
+
     if error:
-        return JsonResponse({'error': error}, status=400)
+        if "email ya está registrado" in error:
+            return JsonResponse({'error': error}, status=409)
+        elif "identificación ya está registrada" in error:
+            return JsonResponse({'error': error}, status=409)
+        else:
+            return JsonResponse({'error': error}, status=400)
+
     return JsonResponse({'message': 'Usuario creado correctamente'}, status=201)
 
 @csrf_exempt

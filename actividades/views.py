@@ -195,7 +195,10 @@ def actualizar_actividad(request, actividad_id):
         return JsonResponse({'error': 'Método no permitido'}, status=405)
 
     try:
-        data = json.loads(request.body)
+        body_unicode = request.body.decode('utf-8')
+        data = json.loads(body_unicode)
+    except UnicodeDecodeError:
+        return JsonResponse({'error': 'Error al decodificar el cuerpo de la solicitud. Asegúrate de que los datos estén correctamente codificados'}, status=400)
     except json.JSONDecodeError:
         return JsonResponse({'error': 'JSON inválido'}, status=400)
 

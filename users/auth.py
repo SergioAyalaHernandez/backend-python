@@ -11,8 +11,15 @@ ALGORITHM = 'HS256'
 
 def create_user(email, nombre, identificacion, password, rol):
     users = get_collection("users")
+    
+    # Verificar si existe un usuario con el mismo email
     if users.find_one({'email': email}):
-        return None, "Usuario ya existe"
+        return None, "El email ya está registrado"
+    
+    # Verificar si existe un usuario con la misma identificación
+    if users.find_one({'identificacion': identificacion}):
+        return None, "La identificación ya está registrada"
+        
     hashed_password = generate_password_hash(password)
     user = {
         "email": email,
