@@ -116,6 +116,7 @@ def obtener_actividades(request):
             "imagen": actividad.get("imagen"),
             "creado": actividad.get("creado").isoformat() if actividad.get("creado") else None,
             "estado": actividad.get("estado", "abierto"),
+            "enlace": actividad.get("enlace"),
             "profesorId": actividad.get("profesorId"),
             "usuariosRegistrados": actividad.get("usuariosRegistrados", [])
         })
@@ -182,6 +183,7 @@ def obtener_actividad_por_id(request, actividad_id):
         "creado": actividad.get("creado").isoformat() if actividad.get("creado") else None,
         "estado": actividad.get("estado", "abierto"),
         "profesorId": actividad.get("profesorId"),
+        "enlace": actividad.get("enlace"),
         "usuariosRegistrados": actividad.get("usuariosRegistrados", [])
     }
 
