@@ -230,11 +230,11 @@ def actualizar_actividad(request, actividad_id):
                     'error': 'El cupo maximo no puede ser menor que el numero de usuarios ya registrados',
                     'usuariosRegistrados': usuarios_registrados
                 }, status=400)
-
             update_data["cuposDisponibles"] = update_data["cupoMaximo"] - usuarios_registrados
-
-            # Si se aumenta el cupo y estaba en estado "completo", cambiar a "abierto"
-            if update_data["cupoMaximo"] > actividad.get("cupoMaximo", 0) and actividad.get("estado") == "completo":
+            if update_data["cuposDisponibles"] == 0:
+                update_data["estado"] = "completo"
+                    # Si se aumenta el cupo y estaba en estado "completo", cambiar a "abierto"
+            elif update_data["cupoMaximo"] > actividad.get("cupoMaximo", 0) and actividad.get("estado") == "completo":
                 update_data["estado"] = "abierto"
 
     result = actividades_collection.update_one(
